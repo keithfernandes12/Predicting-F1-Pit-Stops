@@ -19,7 +19,7 @@ FEATURE_COLS = [
     "LT_lag1", "LT_lag2", "LTD_lag1", "TL_lag1", "PitStop_lag1",
     "LT_roll3_mean", "LT_roll3_std", "LTD_roll3_mean",
     # stint
-    "NormTyreLife", "TyreLife_compound_pct", "Deg_per_lap", "new_stint_flag",
+    "NormTyreLife", "TyreLife_compound_pct", "Deg_per_lap",
     # race context
     "EstTotalLaps", "LapsRemaining", "LapsRemaining_clip",
     "LT_race_compound_mean", "LT_vs_pace",
@@ -87,9 +87,6 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
     df["LapsRemaining"] = df["EstTotalLaps"] - df["LapNumber"]
     df["LT_race_compound_mean"] = df.groupby(["Race", "Year", "Compound"])["LapTime (s)"].transform("mean")
     df["LT_vs_pace"] = df["LapTime (s)"] - df["LT_race_compound_mean"]
-
-    # --- B2: Additional stint features ---
-    df["new_stint_flag"] = (df["TyreLife"] <= 1).astype(np.int8)  # first lap of fresh tyre
 
     # --- C2: Race context extras ---
     df["LapsRemaining_clip"] = df["LapsRemaining"].clip(lower=0)
