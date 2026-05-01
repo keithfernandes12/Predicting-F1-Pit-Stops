@@ -1,2 +1,13 @@
 Dataset/
 .claude/
+CLAUDE.md
+catboost_info/
+submissions/
+__pycache__/
+*.pyc
+*.pyo
+.ipynb_checkpoints/
+optuna.db
+*.pkl
+*.joblib
+
