@@ -20,37 +20,46 @@ Predict `PitNextLap` - whether a driver will pit on the following lap (`1`) or n
 
 ## Dataset
 
-| File                   | Description                                          |
-| ---------------------- | ---------------------------------------------------- |
-| `train.csv`            | Labeled training data with lap-level race telemetry  |
-| `test.csv`             | Unlabeled test data for generating predictions       |
-| `sample_submission.csv`| Correct submission format (`id`, `PitNextLap`)       |
+### Competition Data (Kaggle)
+
+| File                    | Description                                         |
+| ----------------------- | --------------------------------------------------- |
+| `train.csv`             | Labeled training data with lap-level race telemetry |
+| `test.csv`              | Unlabeled test data for generating predictions      |
+| `sample_submission.csv` | Correct submission format (`id`, `PitNextLap`)      |
+
+### External Dataset
+
+- `f1_strategy_dataset_v4.csv` - [F1 Strategy Dataset - Pit Stop Prediction](https://www.kaggle.com/datasets/aadigupta1601/f1-strategy-dataset-pit-stop-prediction)
+
+An external F1 strategy dataset used to supplement training. It shares the same schema as the competition data and uses real driver abbreviations (e.g., `ALB`, `VER`) instead of encoded IDs. It also includes an additional `Normalized_TyreLife` feature not present in the competition files.
 
 ### Features
 
-| Feature                  | Description                                             |
-| ------------------------ | ------------------------------------------------------- |
-| `id`                     | Unique row identifier                                   |
-| `Driver`                 | Encoded driver identifier                               |
-| `Compound`               | Tyre compound in use (HARD, MEDIUM, SOFT, etc.)         |
-| `Race`                   | Grand Prix name                                         |
-| `Year`                   | Season year (2022-2025)                                 |
-| `PitStop`                | Whether the driver pitted on the current lap (0/1)      |
-| `LapNumber`              | Current lap number                                      |
-| `Stint`                  | Current stint number (resets after each pit stop)       |
-| `TyreLife`               | Age of current tyres in laps                            |
-| `Position`               | Current race position                                   |
-| `LapTime (s)`            | Lap time in seconds                                     |
-| `LapTime_Delta`          | Change in lap time vs previous lap                      |
-| `Cumulative_Degradation` | Accumulated tyre degradation over the stint             |
-| `RaceProgress`           | Fraction of race completed (0.0 to 1.0)                 |
-| `Position_Change`        | Change in position since last lap                       |
+| Feature                  | Description                                        | External Dataset |
+| ------------------------ | -------------------------------------------------- | :--------------: |
+| `id`                     | Unique row identifier                              | No               |
+| `Driver`                 | Driver identifier (encoded in competition data)    | Yes              |
+| `Compound`               | Tyre compound in use (HARD, MEDIUM, SOFT, etc.)    | Yes              |
+| `Race`                   | Grand Prix name                                    | Yes              |
+| `Year`                   | Season year                                        | Yes              |
+| `PitStop`                | Whether the driver pitted on the current lap (0/1) | Yes              |
+| `LapNumber`              | Current lap number                                 | Yes              |
+| `Stint`                  | Current stint number (resets after each pit stop)  | Yes              |
+| `TyreLife`               | Age of current tyres in laps                       | Yes              |
+| `Normalized_TyreLife`    | Tyre life normalized within the stint              | Yes (only)       |
+| `Position`               | Current race position                              | Yes              |
+| `LapTime (s)`            | Lap time in seconds                                | Yes              |
+| `LapTime_Delta`          | Change in lap time vs previous lap                 | Yes              |
+| `Cumulative_Degradation` | Accumulated tyre degradation over the stint        | Yes              |
+| `RaceProgress`           | Fraction of race completed (0.0 to 1.0)            | Yes              |
+| `Position_Change`        | Change in position since last lap                  | Yes              |
 
 ### Target
 
-| Column       | Type          | Description                            |
-| ------------ | ------------- | -------------------------------------- |
-| `PitNextLap` | Binary (0/1)  | `1` = driver pits on the next lap      |
+| Column       | Type         | Description                       |
+| ------------ | ------------ | --------------------------------- |
+| `PitNextLap` | Binary (0/1) | `1` = driver pits on the next lap |
 
 ---
 
