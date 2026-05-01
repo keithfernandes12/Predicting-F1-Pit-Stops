@@ -1,11 +1,12 @@
 import sys, pickle
-sys.path.insert(0, '.')
+import pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 import numpy as np, pandas as pd
 from pathlib import Path
 from sklearn.metrics import roc_auc_score
 from src.utils import rank_avg
 
-cache = Path('cache')
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+cache = ROOT / 'cache'
 train_feat = pd.read_pickle(cache / 'train_feat.pkl')
 y_true = train_feat['PitNextLap'].values
 

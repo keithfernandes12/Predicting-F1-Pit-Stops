@@ -8,7 +8,7 @@ Run AFTER run_tuning.py has written best_params.pkl — uses tuned params if ava
 """
 import sys, warnings, pickle
 warnings.filterwarnings('ignore')
-sys.path.insert(0, '.')
+import pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
 import pandas as pd
 import numpy as np
@@ -21,7 +21,8 @@ from src.cv import run_cv, add_target_encoding
 from src.models import make_lgb_fn, DEFAULT_LGB_PARAMS
 from src.utils import rank_avg
 
-cache = Path('cache')
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+cache = ROOT / 'cache'
 
 print('Loading raw data...')
 train = load_train()

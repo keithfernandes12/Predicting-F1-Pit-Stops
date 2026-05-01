@@ -1,7 +1,7 @@
 """Run full 5-fold CV for LGB, XGB, CatBoost and save results."""
 import sys, warnings, pickle
 warnings.filterwarnings('ignore')
-sys.path.insert(0, '.')
+import pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
 import pandas as pd
 import numpy as np
@@ -13,7 +13,8 @@ from src.cv import run_cv, add_target_encoding
 from src.models import make_lgb_fn, make_xgb_fn, make_cat_fn, train_full
 from src.utils import rank_avg, save_submission
 
-cache = Path('cache')
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+cache = ROOT / 'cache'
 train_feat = pd.read_pickle(cache / 'train_feat.pkl')
 ext_feat   = pd.read_pickle(cache / 'ext_feat.pkl')
 test_feat  = pd.read_pickle(cache / 'test_feat.pkl')

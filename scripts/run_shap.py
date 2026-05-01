@@ -5,7 +5,7 @@ Run after run_tuning.py (uses best params if available, else defaults).
 """
 import sys, warnings, pickle
 warnings.filterwarnings('ignore')
-sys.path.insert(0, '.')
+import pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
 import pandas as pd
 import numpy as np
@@ -17,7 +17,10 @@ from src.features import get_feature_cols, TARGET
 from src.cv import add_target_encoding
 from src.models import DEFAULT_LGB_PARAMS
 
-cache = Path('cache')
+ROOT  = pathlib.Path(__file__).resolve().parent.parent
+cache = ROOT / 'cache'
+outputs = ROOT / 'outputs'
+outputs.mkdir(exist_ok=True)
 train_feat = pd.read_pickle(cache / 'train_feat.pkl')
 ext_feat   = pd.read_pickle(cache / 'ext_feat.pkl')
 test_feat  = pd.read_pickle(cache / 'test_feat.pkl')
@@ -60,14 +63,14 @@ try:
                       show=False, max_display=30)
     plt.title('SHAP Feature Importance (LightGBM)')
     plt.tight_layout()
-    plt.savefig('shap_summary.png', dpi=150, bbox_inches='tight')
+    plt.savefig(outputs / 'shap_summary.png', dpi=150, bbox_inches='tight')
     plt.close()
-    print('Saved shap_summary.png')
+    print(f'Saved {outputs / "shap_summary.png"}')
 
     # Save mean |SHAP| per feature
     mean_abs_shap = pd.Series(np.abs(shap_values).mean(axis=0), index=feature_cols).sort_values(ascending=False)
-    mean_abs_shap.to_csv('shap_importance.csv', header=['mean_abs_shap'])
-    print('Saved shap_importance.csv')
+    mean_abs_shap.to_csv(outputs / 'shap_importance.csv', header=['mean_abs_shap'])
+    print(f'Saved {outputs / "shap_importance.csv"}')
     print('\nTop 20 features by mean |SHAP|:')
     print(mean_abs_shap.head(20).to_string())
 except ImportError:
@@ -75,6 +78,6 @@ except ImportError:
 
 # LGB gain importance as fallback
 fi = pd.Series(model.feature_importances_, index=feature_cols).sort_values(ascending=False)
-fi.to_csv('lgb_importance.csv', header=['gain'])
+fi.to_csv(outputs / 'lgb_importance.csv', header=['gain'])
 print('\nTop 20 by LGB gain importance:')
 print(fi.head(20).to_string())
