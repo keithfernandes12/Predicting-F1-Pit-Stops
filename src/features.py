@@ -15,14 +15,20 @@ FEATURE_COLS = [
     "TyreLife", "Stint", "LapNumber", "Position", "RaceProgress",
     "LapTime (s)", "LapTime_Delta", "Cumulative_Degradation", "Position_Change",
     "PitStop",
-    # engineered
+    # lag / rolling
     "LT_lag1", "LT_lag2", "LTD_lag1", "TL_lag1", "PitStop_lag1",
     "LT_roll3_mean", "LT_roll3_std", "LTD_roll3_mean",
-    "NormTyreLife", "Deg_per_lap",
-    "EstTotalLaps", "LapsRemaining", "LT_race_compound_mean", "LT_vs_pace",
+    # stint
+    "NormTyreLife", "Deg_per_lap", "new_stint_flag",
+    # race context
+    "EstTotalLaps", "LapsRemaining", "LapsRemaining_clip",
+    "LT_race_compound_mean", "LT_vs_pace",
+    # interactions
     "TL_x_Stint", "RP_x_TL", "LR_x_TL",
+    "LT_acceleration", "Deg_x_NormTL",
+    "LapsRemaining_x_NormTL",
+    # flags
     "is_year2023", "is_pretesting", "is_real_driver", "Compound_ord",
-    # year as numeric
     "Year",
 ]
 
@@ -77,10 +83,26 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
     df["LT_race_compound_mean"] = df.groupby(["Race", "Year", "Compound"])["LapTime (s)"].transform("mean")
     df["LT_vs_pace"] = df["LapTime (s)"] - df["LT_race_compound_mean"]
 
+    # --- B2: Additional stint features ---
+    df["new_stint_flag"] = (df["TyreLife"] <= 1).astype(np.int8)  # first lap of fresh tyre
+
+    # --- C2: Race context extras ---
+    df["LapsRemaining_clip"] = df["LapsRemaining"].clip(lower=0)
+
     # --- D: Interaction & flag features ---
     df["TL_x_Stint"] = df["TyreLife"] * df["Stint"]
     df["RP_x_TL"] = df["RaceProgress"] * df["TyreLife"]
     df["LR_x_TL"] = df["LapsRemaining"] * df["TyreLife"]
+
+    # second derivative of lap time — accelerating degradation is a pit signal
+    df["LT_acceleration"] = df["LapTime_Delta"] - df["LTD_lag1"]
+
+    # degradation × NormTyreLife — worn tyre degrading fast
+    df["Deg_x_NormTL"] = df["Cumulative_Degradation"] * df["NormTyreLife"]
+
+    # how many laps left relative to how far through the stint — urgency signal
+    df["LapsRemaining_x_NormTL"] = df["LapsRemaining_clip"] * df["NormTyreLife"]
+
     df["is_year2023"] = (df["Year"] == 2023).astype(np.int8)
     df["is_pretesting"] = (df["Race"] == "Pre-Season Testing").astype(np.int8)
     df["is_real_driver"] = (~df["Driver"].astype(str).str.match(r"^D\d+$")).astype(np.int8)
