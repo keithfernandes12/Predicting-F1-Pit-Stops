@@ -43,33 +43,31 @@ def _assign_ext_ids(ext: pd.DataFrame) -> pd.DataFrame:
 
 def build_features(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Compute all features in-place on the combined train+test+external frame.
-    df must be sorted by [Driver, Race, Year, LapNumber] before calling, OR
-    this function will sort it internally.
+    Compute all features on the combined train+test+external frame.
+    Frame is sorted internally; original index preserved for id-based splitting.
     """
     df = df.sort_values(["Driver", "Race", "Year", "LapNumber"]).copy()
-    g = df.groupby(["Driver", "Race", "Year"], sort=False)
 
-    # --- A: Lag / rolling features ---
+    # Single groupby key reused for all operations
+    grp_key = ["Driver", "Race", "Year"]
+    g = df.groupby(grp_key, sort=False)
+
+    # --- A: Lag features ---
     df["LT_lag1"] = g["LapTime (s)"].shift(1)
     df["LT_lag2"] = g["LapTime (s)"].shift(2)
     df["LTD_lag1"] = g["LapTime_Delta"].shift(1)
     df["TL_lag1"] = g["TyreLife"].shift(1)
     df["PitStop_lag1"] = g["PitStop"].shift(1)
 
-    lt_shifted = g["LapTime (s)"].shift(1)
-    df["LT_roll3_mean"] = (
-        lt_shifted.groupby(df["Driver"].astype(str) + "_" + df["Race"] + "_" + df["Year"].astype(str))
-        .transform(lambda x: x.rolling(3, min_periods=1).mean())
+    # Rolling features: shift(1) inside transform ensures no current-lap leakage
+    df["LT_roll3_mean"] = g["LapTime (s)"].transform(
+        lambda x: x.shift(1).rolling(3, min_periods=1).mean()
     )
-    df["LT_roll3_std"] = (
-        lt_shifted.groupby(df["Driver"].astype(str) + "_" + df["Race"] + "_" + df["Year"].astype(str))
-        .transform(lambda x: x.rolling(3, min_periods=1).std())
+    df["LT_roll3_std"] = g["LapTime (s)"].transform(
+        lambda x: x.shift(1).rolling(3, min_periods=1).std()
     )
-    ltd_shifted = g["LapTime_Delta"].shift(1)
-    df["LTD_roll3_mean"] = (
-        ltd_shifted.groupby(df["Driver"].astype(str) + "_" + df["Race"] + "_" + df["Year"].astype(str))
-        .transform(lambda x: x.rolling(3, min_periods=1).mean())
+    df["LTD_roll3_mean"] = g["LapTime_Delta"].transform(
+        lambda x: x.shift(1).rolling(3, min_periods=1).mean()
     )
 
     # --- B: Stint features ---

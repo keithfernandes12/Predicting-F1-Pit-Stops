@@ -27,21 +27,40 @@ DEFAULT_LGB_PARAMS = {
 
 def make_lgb_fn(params: dict = None, early_stopping_rounds: int = 100):
     p = {**DEFAULT_LGB_PARAMS, **(params or {})}
+    dart_mode = p.get("boosting_type") == "dart"
 
     def model_fn(X_tr, y_tr, w_tr, X_val, y_val):
         model = lgb.LGBMClassifier(**p)
-        model.fit(
-            X_tr, y_tr,
-            sample_weight=w_tr,
-            eval_set=[(X_val, y_val)],
-            callbacks=[
-                lgb.early_stopping(early_stopping_rounds, verbose=False),
-                lgb.log_evaluation(period=-1),
-            ],
-        )
+        if dart_mode:
+            # DART doesn't support early stopping — use fixed n_estimators
+            model.fit(X_tr, y_tr, sample_weight=w_tr,
+                      callbacks=[lgb.log_evaluation(period=-1)])
+        else:
+            model.fit(
+                X_tr, y_tr,
+                sample_weight=w_tr,
+                eval_set=[(X_val, y_val)],
+                callbacks=[
+                    lgb.early_stopping(early_stopping_rounds, verbose=False),
+                    lgb.log_evaluation(period=-1),
+                ],
+            )
         return model
 
     return model_fn
+
+
+def make_lgb_dart_fn(n_estimators: int = 800, params: dict = None):
+    """LightGBM with DART boosting — no early stopping, fixed n_estimators."""
+    dart_params = {
+        **DEFAULT_LGB_PARAMS,
+        "boosting_type": "dart",
+        "n_estimators": n_estimators,
+        "drop_rate": 0.1,
+        "skip_drop": 0.5,
+        **(params or {}),
+    }
+    return make_lgb_fn(dart_params)
 
 
 # ── XGBoost ──────────────────────────────────────────────────────────────────
