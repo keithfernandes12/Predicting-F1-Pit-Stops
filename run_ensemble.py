@@ -87,7 +87,7 @@ print(f'Weighted ensemble OOF AUC: {roc_auc_score(y_true, weighted_oof):.5f}')
 
 # ── Stacking ─────────────────────────────────────────────────────────────────
 print('\n=== Stacking (LR meta-learner) ===')
-stacked_test = stack_predict(
+stacked_oof, stacked_test = stack_predict(
     [lgb_oof, xgb_oof, cat_oof, dart_oof],
     [lgb_test, xgb_test, cat_test, dart_test_preds],
     y_true,
@@ -117,6 +117,7 @@ all_results = {
     'Rank 3-model':         roc_auc_score(y_true, rank_oof),
     'Rank 4-model (+DART)': roc_auc_score(y_true, rank_oof_dart),
     'Weighted 4-model':     roc_auc_score(y_true, weighted_oof),
+    'Stacked (LR meta)':    roc_auc_score(y_true, stacked_oof),
     'LGB + pseudo':         roc_auc_score(y_true, lgb_oof_pl),
 }
 for k, v in sorted(all_results.items(), key=lambda x: -x[1]):
@@ -126,7 +127,9 @@ for k, v in sorted(all_results.items(), key=lambda x: -x[1]):
 best_method = max(all_results, key=all_results.get)
 print(f'\nBest OOF method: {best_method}')
 
-if 'DART' in best_method and '4' in best_method:
+if 'Stacked' in best_method:
+    final_test = stacked_test
+elif 'DART' in best_method and '4' in best_method:
     final_test = rank_test_dart
 elif 'Weighted' in best_method:
     final_test = weighted_test
@@ -143,6 +146,8 @@ else:
 sub = save_submission(test_feat['id'], final_test, tag='final_ensemble')
 print(f'\nFinal submission: {sub}')
 
-# Also save rank 4-model as alternative
+# Also save rank 4-model and stacked as alternatives
 sub2 = save_submission(test_feat['id'], rank_test_dart, tag='rank4_lgb_xgb_cat_dart')
 print(f'Alternative (rank 4-model): {sub2}')
+sub3 = save_submission(test_feat['id'], stacked_test, tag='stacked_lr_meta')
+print(f'Alternative (stacked LR):   {sub3}')

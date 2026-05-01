@@ -86,4 +86,4 @@ def stack_predict(
         stacked_test += lr.predict_proba(meta_test)[:, 1] / n_splits
 
     print(f"Stacked OOF AUC: {roc_auc_score(y_true, stacked_oof):.5f}")
-    return stacked_test
+    return stacked_oof, stacked_test

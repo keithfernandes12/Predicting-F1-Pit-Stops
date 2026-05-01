@@ -17,9 +17,14 @@ FEATURE_COLS = [
     "PitStop",
     # lag / rolling
     "LT_lag1", "LT_lag2", "LTD_lag1", "TL_lag1", "PitStop_lag1",
-    "LT_roll3_mean", "LT_roll3_std", "LTD_roll3_mean",
+    "CD_lag1",
+    "LT_roll3_mean", "LT_roll3_std", "LT_roll5_std", "LTD_roll3_mean",
+    "CD_roll3_mean",
     # stint
     "NormTyreLife", "TyreLife_compound_pct", "Deg_per_lap",
+    "tyre_life_vs_field_max",
+    # degradation trend
+    "deg_acceleration",
     # race context
     "EstTotalLaps", "LapsRemaining", "LapsRemaining_clip",
     "LT_race_compound_mean", "LT_vs_pace",
@@ -27,6 +32,8 @@ FEATURE_COLS = [
     "TL_x_Stint", "RP_x_TL", "LR_x_TL",
     "LT_acceleration", "Deg_x_NormTL",
     "LapsRemaining_x_NormTL",
+    # position trend
+    "position_trend",
     # flags
     "is_year2023", "is_pretesting", "is_real_driver", "Compound_ord",
     "Year",
@@ -62,6 +69,7 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
     df["LTD_lag1"] = g["LapTime_Delta"].shift(1)
     df["TL_lag1"] = g["TyreLife"].shift(1)
     df["PitStop_lag1"] = g["PitStop"].shift(1)
+    df["CD_lag1"] = g["Cumulative_Degradation"].shift(1)
 
     # Rolling features: shift(1) inside transform ensures no current-lap leakage
     df["LT_roll3_mean"] = g["LapTime (s)"].transform(
@@ -70,7 +78,13 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
     df["LT_roll3_std"] = g["LapTime (s)"].transform(
         lambda x: x.shift(1).rolling(3, min_periods=1).std()
     )
+    df["LT_roll5_std"] = g["LapTime (s)"].transform(
+        lambda x: x.shift(1).rolling(5, min_periods=2).std()
+    )
     df["LTD_roll3_mean"] = g["LapTime_Delta"].transform(
+        lambda x: x.shift(1).rolling(3, min_periods=1).mean()
+    )
+    df["CD_roll3_mean"] = g["Cumulative_Degradation"].transform(
         lambda x: x.shift(1).rolling(3, min_periods=1).mean()
     )
 
@@ -81,6 +95,11 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
     # TyreLife normalised by compound-typical max — doesn't depend on observed stint length
     compound_max = df["Compound"].map(_COMPOUND_TYPICAL_MAX).fillna(25)
     df["TyreLife_compound_pct"] = df["TyreLife"] / compound_max
+    # Data-driven: max tyre life observed at this compound in this race/year (field-wide context)
+    df["field_max_tyre_life"] = df.groupby(["Race", "Year", "Compound"])["TyreLife"].transform("max")
+    df["tyre_life_vs_field_max"] = df["TyreLife"] / df["field_max_tyre_life"].clip(lower=1)
+    # Degradation acceleration: how much degradation occurred since last lap
+    df["deg_acceleration"] = df["Cumulative_Degradation"] - df["CD_lag1"]
 
     # --- C: Race context features ---
     df["EstTotalLaps"] = (df["LapNumber"] / df["RaceProgress"].clip(lower=0.01)).round()
@@ -109,6 +128,10 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
     df["is_pretesting"] = (df["Race"] == "Pre-Season Testing").astype(np.int8)
     df["is_real_driver"] = (~df["Driver"].astype(str).str.match(r"^D\d+$")).astype(np.int8)
     df["Compound_ord"] = df["Compound"].map(_COMPOUND_ORD).fillna(5).astype(np.int8)
+
+    # Position trend over last 3 laps (positive = losing places, negative = gaining)
+    df["Position_lag3"] = g["Position"].shift(3)
+    df["position_trend"] = df["Position"] - df["Position_lag3"]
 
     return df
 
