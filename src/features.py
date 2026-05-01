@@ -19,7 +19,7 @@ FEATURE_COLS = [
     "LT_lag1", "LT_lag2", "LTD_lag1", "TL_lag1", "PitStop_lag1",
     "LT_roll3_mean", "LT_roll3_std", "LTD_roll3_mean",
     # stint
-    "NormTyreLife", "Deg_per_lap", "new_stint_flag",
+    "NormTyreLife", "TyreLife_compound_pct", "Deg_per_lap", "new_stint_flag",
     # race context
     "EstTotalLaps", "LapsRemaining", "LapsRemaining_clip",
     "LT_race_compound_mean", "LT_vs_pace",
@@ -33,6 +33,10 @@ FEATURE_COLS = [
 ]
 
 _COMPOUND_ORD = {"SOFT": 0, "MEDIUM": 1, "HARD": 2, "INTERMEDIATE": 3, "WET": 4}
+
+# Typical max stint length by compound (in laps) — derived from domain knowledge
+# Used to normalise TyreLife independent of observed stint completeness
+_COMPOUND_TYPICAL_MAX = {"SOFT": 20, "MEDIUM": 30, "HARD": 40, "INTERMEDIATE": 25, "WET": 20}
 
 
 def _assign_ext_ids(ext: pd.DataFrame) -> pd.DataFrame:
@@ -74,6 +78,9 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
     stint_max = df.groupby(["Driver", "Race", "Year", "Stint"])["TyreLife"].transform("max")
     df["NormTyreLife"] = df["TyreLife"] / stint_max.clip(lower=1)
     df["Deg_per_lap"] = df["Cumulative_Degradation"] / df["TyreLife"].clip(lower=1)
+    # TyreLife normalised by compound-typical max — doesn't depend on observed stint length
+    compound_max = df["Compound"].map(_COMPOUND_TYPICAL_MAX).fillna(25)
+    df["TyreLife_compound_pct"] = df["TyreLife"] / compound_max
 
     # --- C: Race context features ---
     df["EstTotalLaps"] = (df["LapNumber"] / df["RaceProgress"].clip(lower=0.01)).round()
