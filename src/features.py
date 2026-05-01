@@ -34,6 +34,8 @@ FEATURE_COLS = [
     "LapsRemaining_x_NormTL",
     # position trend
     "position_trend",
+    # strategic window
+    "laps_rem_vs_compound_max", "can_finish_on_current",
     # flags
     "is_year2023", "is_pretesting", "is_real_driver", "Compound_ord",
     "Year",
@@ -132,6 +134,11 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
     # Position trend over last 3 laps (positive = losing places, negative = gaining)
     df["Position_lag3"] = g["Position"].shift(3)
     df["position_trend"] = df["Position"] - df["Position_lag3"]
+
+    # Stint is rank-2 by SHAP but trees learn it slowly — explicit is_final_stint_window helps
+    # LapsRemaining <= compound typical max means driver could plausibly do final stint
+    df["laps_rem_vs_compound_max"] = df["LapsRemaining_clip"] - compound_max
+    df["can_finish_on_current"] = (df["laps_rem_vs_compound_max"] <= 0).astype(np.int8)
 
     return df
 
