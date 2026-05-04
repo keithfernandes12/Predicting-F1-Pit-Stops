@@ -7,15 +7,40 @@ Metric: **AUC-ROC** · [Competition link](https://www.kaggle.com/competitions/pl
 
 ## Results
 
-| Model | OOF AUC |
-| --- | --- |
-| LightGBM (default) | 0.9389 |
-| XGBoost (default) | 0.9385 |
-| CatBoost (default) | 0.9384 |
-| **Rank Ensemble (LGB + XGB + CAT)** | **0.9399** |
-| Tuned + DART + Stacking *(in progress)* | ~0.944+ expected |
+### Final OOF AUC — All Models & Ensembles
 
-> Baseline OOF AUC without external dataset: ~0.930. Adding 76,929 rows from the external F1 strategy dataset is the single biggest boost (+0.010).
+| Model / Ensemble | OOF AUC |
+| --- | --- |
+| LightGBM (tuned) | 0.94004 |
+| XGBoost (tuned) | 0.93922 |
+| CatBoost (tuned) | 0.93793 |
+| LGB DART | 0.93506 |
+| Rank 3-model (LGB + XGB + CAT) | 0.93995 |
+| Rank 4-model (+ DART) | 0.93943 |
+| Stacked (LR meta-learner) | 0.93848 |
+| **Weighted 4-model blend** | **0.94019** |
+
+Optimal ensemble weights: LGB=0.724 · XGB=0.105 · CAT=0.171 · DART=0.000
+
+> Baseline OOF AUC without external dataset: ~0.930. Adding 76,929 deduplicated rows from the external F1 strategy dataset is the single biggest boost (+0.010).
+
+![Ensemble comparison](outputs/ensemble_comparison.png)
+
+### Per-Fold CV Results (GroupKFold-5 by Race×Year)
+
+| Fold | LightGBM | XGBoost | CatBoost | LGB DART |
+| --- | --- | --- | --- | --- |
+| 1 | 0.93526 | 0.93366 | 0.93234 | 0.92724 |
+| 2 | 0.94033 | 0.93972 | 0.93687 | 0.93631 |
+| 3 | 0.95148 | 0.95051 | 0.95046 | 0.94606 |
+| 4 | 0.93951 | 0.93875 | 0.93805 | 0.93492 |
+| 5 | 0.93051 | 0.92962 | 0.92889 | 0.92748 |
+| **Mean** | **0.93942** | **0.93845** | **0.93732** | **0.93440** |
+| Std | 0.00697 | 0.00704 | 0.00734 | 0.00692 |
+
+![Per-fold AUC](outputs/fold_auc_comparison.png)
+
+![Mean CV AUC](outputs/mean_cv_auc.png)
 
 ---
 
@@ -70,34 +95,17 @@ Features are computed on a combined train + test + external frame (sorted by Dri
 
 ```text
 Predicting-F1-Pit-Stops/
-├── src/
-│   ├── data.py          # load_train/test/external, dedup_external
-│   ├── features.py      # build_features() — single source of truth for all 45 features
-│   ├── cv.py            # GroupKFold runner + OOF target encoding
-│   ├── models.py        # LGB / XGB / CatBoost / DART factory functions
-│   ├── ensemble.py      # rank_avg, weighted blend, stacking, pseudo_label
-│   └── utils.py         # save_submission, rank_avg, optimise_weights
 ├── notebooks/
-│   ├── 01_eda.ipynb
-│   ├── 02_feature_engineering.ipynb
-│   ├── 03_baseline_models.ipynb
-│   ├── 04_tuning.ipynb
-│   ├── 05_ensemble.ipynb
-│   └── kaggle_submission.ipynb   ← self-contained Kaggle upload notebook
+│   └── predicting-f1-pit-stops-playground-series-s6e5.ipynb  ← self-contained Kaggle notebook
 ├── scripts/
-│   ├── run_baseline.py           ← 5-fold CV, all 3 models
-│   ├── run_tuning.py             ← Optuna search (30+20+10 trials)
-│   ├── run_ensemble.py           ← DART + stacking + pseudo-labeling
-│   ├── run_features_v2.py        ← regenerate cache + test v2 features
-│   ├── run_shap.py               ← SHAP analysis
-│   └── check_results.py          ← quick OOF AUC from cache
+│   └── generate_result_charts.py   ← generates outputs/ charts from final results
 ├── outputs/
-│   ├── shap_summary.png
-│   ├── shap_importance.csv
-│   └── lgb_importance.csv
-├── Dataset/                      ← raw data (gitignored)
-├── submissions/                  ← generated CSVs (gitignored)
-├── cache/                        ← feature cache .pkl files (gitignored)
+│   ├── ensemble_comparison.png
+│   ├── fold_auc_comparison.png
+│   ├── mean_cv_auc.png
+│   └── shap_summary.png
+├── Dataset/                        ← raw data (gitignored)
+├── submissions/                    ← generated CSVs (gitignored)
 └── requirements.txt
 ```
 
@@ -105,36 +113,14 @@ Predicting-F1-Pit-Stops/
 
 ## Reproducing Results
 
-```bash
-pip install -r requirements.txt
+Upload `notebooks/predicting-f1-pit-stops-playground-series-s6e5.ipynb` to Kaggle and add the following datasets:
 
-# 1. Build feature cache
-py -3 -c "
-import sys; sys.path.insert(0, '.')
-from src.data import load_train, load_test, load_external, dedup_external
-from src.features import prepare_all
-from pathlib import Path
-train, test, ext = load_train(), load_test(), load_external()
-ext = dedup_external(train, ext)
-tr, te, ex = prepare_all(train, test, ext)
-Path('cache').mkdir(exist_ok=True)
-tr.to_pickle('cache/train_feat.pkl')
-te.to_pickle('cache/test_feat.pkl')
-ex.to_pickle('cache/ext_feat.pkl')
-print('Cache built.')
-"
+1. **Competition data** — [Playground Series S6E5](https://www.kaggle.com/competitions/playground-series-s6e5/data)
+2. **External supplement** — search Kaggle Datasets for `f1-strategy-dataset` by aadigupta1601
 
-# 2. Baseline CV (≈30 min)
-py -3 scripts/run_baseline.py
+The notebook is fully self-contained: feature engineering → Optuna tuning → 5-fold CV → ensemble → submission.csv.
 
-# 3. Hyperparameter tuning (≈4 hours)
-py -3 scripts/run_tuning.py
-
-# 4. Final ensemble + submission
-py -3 scripts/run_ensemble.py
-```
-
-Or upload `notebooks/kaggle_submission.ipynb` directly to Kaggle for a fully self-contained run.
+**Estimated runtime**: ~3–4 hours on a Kaggle P100 GPU (most time is Optuna tuning; set `RUN_OPTUNA = False` to skip and use the pre-set params, reducing runtime to ~30 min with ~0.003–0.005 AUC penalty).
 
 ---
 
